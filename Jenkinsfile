@@ -14,7 +14,6 @@ pipeline {
     }
 
     stages {
-
         stage('Check Tools') {
             steps {
                 bat 'git --version'
@@ -63,6 +62,19 @@ pipeline {
                         reports\\maestro-positive-result.xml ^
                         reports\\dashboard\\index.html
                 '''
+            }
+        }
+        stage('Publish Enterprise HTML Report') {
+            steps {
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'reports/dashboard',
+                    reportFiles: 'index.html',
+                    reportName: 'Enterprise Automation Report',
+                    reportTitles: 'Mobile Automation Test Report'
+                    ])
             }
         }
     }
