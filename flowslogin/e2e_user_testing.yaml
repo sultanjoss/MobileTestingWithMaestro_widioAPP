@@ -44,8 +44,12 @@ env:
 
 - assertVisible:
     text: "Forms"
+
+
 - tapOn:
-    text: "Input field:"
+    text: "Type something"
+
+- waitForAnimationToEnd
 
 - inputText: "testingaja"
 
