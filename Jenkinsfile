@@ -30,9 +30,17 @@ pipeline {
             }
         }
 
-        stage('Run Maestro Smoke Test') {
-            steps {
-                bat 'maestro test flowslogin --include-tags=positif'
+        stage('Run Maestro Positive Test') {
+            steps {bat '''if not exist reports mkdir reports
+            maestro test flowslogin ^
+            --include-tags=positif ^
+            --format junit ^
+            --output reports\\maestro-positive-result.xml
+            '''
+            }
+        }
+        stage('Publish Test Result') {
+            steps {junit 'reports/maestro-positive-result.xml'
             }
         }
     }
