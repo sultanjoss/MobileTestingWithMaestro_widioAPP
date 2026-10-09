@@ -47,12 +47,12 @@ env:
 - tapOn:
     text: "Input field:"
 
-- inputText: "E2E Maestro Testing"
+- inputText: "testingaja"
 
 - hideKeyboard
 
 - assertVisible:
-    text: "E2E Maestro Testing"
+    text: "testingaja"
 
 - tapOn:
     text: "Swipe"
