@@ -1,0 +1,52 @@
+appId: com.wdiodemoapp
+
+tags:
+  - positif
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    text:   "Forms"
+
+- assertVisible:
+    text: "Form components"
+- tapOn:
+    text: "input field:"
+- inputText: "testing-maestro"
+- hideKeyboard
+
+- assertVisible:
+    text: "testing-maestro"
+
+- tapOn:
+    text: "testing-maestro"
+- eraseText
+
+- inputText: "maestrojoss"
+- hideKeyboard
+- assertVisible:
+    text: "maestrojoss"
+
+- tapOn:
+    text: "Switch"
+- assertVisible:
+    text: "Click to turn the switch OFF"
+
+- tapOn:
+    text: "Dropdown"
+
+- tapOn:
+    text: "webdriver.io is awesome"
+
+- assertVisible:
+    text: "webdriver.io is awesome"
+
+- tapOn:
+    text: "Active"
+
+- assertVisible:
+    text: "This button is active"
+
+- tapOn:
+    text: "OK"

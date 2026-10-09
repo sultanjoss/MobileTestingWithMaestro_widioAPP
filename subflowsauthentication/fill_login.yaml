@@ -1,0 +1,17 @@
+appId: com.wdiodemoapp
+---
+- tapOn:
+    text: "Email"
+
+- eraseText
+
+- inputText: "${EMAIL}"
+
+- tapOn:
+    text: "Password"
+
+- eraseText
+
+- inputText: "${PASSWORD}"
+
+- hideKeyboard

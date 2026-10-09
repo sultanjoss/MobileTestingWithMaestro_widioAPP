@@ -1,0 +1,27 @@
+# Maestro artifacts
+.maestro/
+
+# Reports
+reports/
+report.html
+testingreport.xml
+
+# Screenshot / evidence lokal
+screenshots/
+
+# Environment / credentials
+.env
+*.env
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Windows
+Thumbs.db
+
+# macOS
+.DS_Store

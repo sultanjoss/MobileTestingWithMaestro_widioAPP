@@ -1,0 +1,23 @@
+appId: com.wdiodemoapp
+---
+- launchApp
+
+- tapOn:
+    text: "Swipe"
+
+- assertVisible:
+    text: "Swipe"
+
+# Swipe 3 kali
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          direction: LEFT
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          direction: RIGHT
+
+- takeScreenshot: repeat_swipe_success

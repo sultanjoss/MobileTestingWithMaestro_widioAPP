@@ -1,0 +1,18 @@
+appId: com.wdiodemoapp
+tags:
+  - negative
+
+---
+- launchApp
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/open_login.yaml
+
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/submit_login.yaml
+
+
+- assertVisible:
+    text: "Please enter at least 8 characters"
+    text: "Please enter a valid email address"

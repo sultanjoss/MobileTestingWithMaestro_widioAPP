@@ -1,0 +1,14 @@
+appId: com.wdiodemoapp
+---
+- launchApp
+
+- tapOn:
+    text: "Login"
+
+- assertVisible:
+    text: "Email"
+
+- pressKey: BACK
+
+- assertVisible:
+    text: "WEBDRIVER"

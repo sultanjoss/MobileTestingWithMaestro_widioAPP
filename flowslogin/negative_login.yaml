@@ -1,0 +1,27 @@
+appId: com.wdiodemoapp
+
+tags:
+  - negative
+---
+- launchApp:
+    clearState: true
+- tapOn: 
+    text: "Login"
+    index: 0
+- assertVisible:
+    text: "Email"
+- assertVisible:
+    text: "Password"
+- tapOn:
+    text: "Email"
+- eraseText
+- inputText: "testing"
+- hideKeyboard
+- tapOn: "button-LOGIN"
+- assertVisible: "Please enter a valid email address"
+
+- tapOn:
+    text: "Password"
+- inputText: "123"
+- hideKeyboard
+- assertVisible: "Please enter at least 8 characters"

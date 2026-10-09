@@ -1,0 +1,67 @@
+appId: com.example.app
+---
+- launchApp:
+    clearState: true
+- tags:
+    - e2e
+    - regression
+
+# LOGIN
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/open_login.yaml
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/fill_email.yaml
+    env:
+      EMAIL: ${EMAIL}
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/fill_password.yaml
+    env:
+      PASSWORD: ${PASSWORD}
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/submit_login.yaml
+- assertVisible:
+    text: "Success"
+# ini buat ada popup
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn:
+          text: "OK"
+
+- tapOn:
+    text: "Forms"
+
+- assertVisible:
+    text: "Forms"
+- tapOn:
+    text: "Input field"
+
+- inputText: "E2E Maestro Testing"
+
+- hideKeyboard
+
+- assertVisible:
+    text: "E2E Maestro Testing"
+
+- tapOn:
+    text: "Swipe"
+
+- assertVisible:
+    text: "Swipe"
+# untuk melakukan sentuhan geser
+- repeat:
+    times: 2
+    commands:
+      - swipe:
+          direction: LEFT
+
+- assertVisible:
+        text: "FULLY OPEN SOURCE"
+- takeScreenshot: e2e_user_journey_success
+
+

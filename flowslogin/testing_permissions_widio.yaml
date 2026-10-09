@@ -1,0 +1,37 @@
+appId: com.wdiodemoapp
+---
+#clearstate ini untuk saat di mulai itu posisi aplikasi nya fresh tidak ada timpaan dari testing lain
+- launchApp:
+    clearState: true
+
+- tapOn:
+    text: "Menu"
+- assertVisible:
+    text: "Permissions"
+
+- tapOn:
+    text: "Permissions"
+- tapOn:
+    text: "permission-switch-location"
+- tapOn:
+    text: "OPEN SETTINGS"
+- assertVisible:
+    text: "App info"
+
+- tapOn:
+    text: "Permissions"
+- assertVisible:
+    text: "App permissions"
+
+- tapOn:
+    text: "Location"
+- assertVisible:
+    text: "Location permission"
+
+- tapOn:
+    id: "deny_radio_button"
+
+- pressKey: Back
+
+    
+

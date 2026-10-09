@@ -1,0 +1,15 @@
+appId: com.wdiodemoapp
+---
+- launchApp
+
+- scrollUntilVisible:
+    element:
+      text: "Webview"
+    direction: DOWN
+
+- tapOn:
+    text: "Webview"
+
+- assertVisible:
+    text: "Webview"
+- takeScreenshot: scroll_webview_visible

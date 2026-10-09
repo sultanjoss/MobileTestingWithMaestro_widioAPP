@@ -1,0 +1,28 @@
+appId: com.wdiodemoapp
+---
+- launchApp:
+    clearState: true
+
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn:
+          text: "Allow"
+
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn:
+          text: "While using the app"
+
+- runFlow:
+    when:
+      visible: "Don’t allow"
+    commands:
+      - assertVisible:
+          text: "Don’t allow"
+
+# ini tuh untuk testing permissions jadi ada ketikka izin camera
+# izin lainnya ada pop up atau kondisi nya gak ada

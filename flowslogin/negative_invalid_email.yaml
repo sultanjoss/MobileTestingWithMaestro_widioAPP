@@ -1,0 +1,25 @@
+appId: com.wdiodemoapp
+tags:
+  - negative
+
+env:
+  EMAIL: invalid-email
+  PASSWORD: password123
+
+---
+- launchApp
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/open_login.yaml
+
+- runFlow:
+    file: C:/Users/Surface/maestro_first/subflowsauthentication/fill_login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+
+- tapOn:
+    text: "button-LOGIN"
+
+- assertVisible:
+    text: "Please enter a valid email address"

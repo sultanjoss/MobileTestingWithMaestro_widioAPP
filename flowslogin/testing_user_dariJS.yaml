@@ -1,0 +1,28 @@
+appId: com.wdiodemoapp
+---
+- launchApp:
+    clearState: true
+
+# Generate data dinamis
+- runScript:
+    file: C:/Users/Surface/maestro_first/scripts/generate_user.js
+
+# Contoh menggunakan hasil JavaScript
+- tapOn:
+    text: "Login"
+- tapOn:
+    text: "Email"
+
+- inputText: ${output.email}
+
+- hideKeyboard
+- tapOn:
+    text: "Password"
+
+- inputText: ${output.password}
+- hideKeyboard
+
+
+- takeScreenshot: dynamic_data_test
+- evalScript: ${console.log(output.email)}
+- evalScript: ${console.log(output.password)}

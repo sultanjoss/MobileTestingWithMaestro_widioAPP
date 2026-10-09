@@ -1,0 +1,63 @@
+appId: com.wdiodemoapp
+
+tags:
+  - positif
+
+---
+# Buka aplikasi
+- launchApp:
+    clearState: true
+
+# Generate data dinamis
+- runScript:
+    file: C:/Users/Surface/maestro_first/scripts/generate_user.js
+
+# Masuk menu Forms
+- tapOn:
+    text: "Forms"
+
+# Klik input field
+- tapOn:
+    text: "Input field:"
+
+# Masukkan email hasil generate JavaScript
+- inputText: ${output.email}
+
+# Tutup keyboard
+- hideKeyboard
+
+# Validasi email hasil generate tampil
+- assertVisible:
+    text: ${output.email}
+- evalScript: ${console.log(output.email)}
+# Evidence
+- takeScreenshot: dynamic_email_successemail
+
+# masukkan nomor HP
+- tapOn:
+    text: "Input field:"
+- eraseText: 50
+- inputText: ${output.phone}
+- evalScript: ${console.log(output.phone)}
+- takeScreenshot: dynamic_phone_success
+
+- runFlow:
+    when:
+        visible: "Switch:"
+    commands:
+        - tapOn:
+            text: "Select an item..."
+- runFlow:
+    when:
+        visible: "Dropdown:"
+    commands:
+        - tapOn:
+            text: "Select an item..."
+        - assertVisible:
+            text: "This app is awesome"
+        - tapOn:
+            text: "This app is awesome"
+- assertVisible:
+    text: "This app is awesome"
+    
+

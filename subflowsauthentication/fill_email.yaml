@@ -1,0 +1,8 @@
+appId: com.wdiodemoapp
+---
+- tapOn:
+    text: "Email"
+
+- eraseText
+
+- inputText: ${EMAIL}
