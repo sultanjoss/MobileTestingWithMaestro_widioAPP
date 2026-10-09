@@ -1,5 +1,5 @@
 appId: com.example.app
-- tags:
+tags:
     - e2e
     - regression
     - positif
