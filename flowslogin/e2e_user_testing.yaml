@@ -45,7 +45,7 @@ env:
 - assertVisible:
     text: "Forms"
 - tapOn:
-    text: "Input field"
+    text: "Input field:"
 
 - inputText: "E2E Maestro Testing"
 
