@@ -7,12 +7,14 @@ from pathlib import Path
 
 
 def safe(value, default="-"):
+    """Escape values before rendering them into HTML."""
     if value is None or str(value).strip() == "":
         return default
     return html.escape(str(value))
 
 
 def format_duration(seconds):
+    """Convert a duration in seconds to a compact human-readable value."""
     try:
         seconds = float(seconds)
     except (TypeError, ValueError):
@@ -28,6 +30,7 @@ def format_duration(seconds):
 
 
 def parse_junit(xml_path):
+    """Read Maestro JUnit XML and normalize its test cases."""
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
@@ -46,7 +49,11 @@ def parse_junit(xml_path):
         for testcase in suite.findall("testcase"):
             name = testcase.attrib.get("name", "Unnamed Test")
             class_name = testcase.attrib.get("classname", suite_name)
-            duration = testcase.attrib.get("time", "0")
+
+            try:
+                duration = float(testcase.attrib.get("time", "0") or 0)
+            except (TypeError, ValueError):
+                duration = 0.0
 
             failure = testcase.find("failure")
             error = testcase.find("error")
@@ -82,7 +89,7 @@ def parse_junit(xml_path):
                     "name": name,
                     "module": class_name,
                     "status": status,
-                    "duration": float(duration or 0),
+                    "duration": duration,
                     "message": str(message).strip(),
                 }
             )
@@ -92,24 +99,38 @@ def parse_junit(xml_path):
 
 def generate_report(testcases, output_path):
     total = len(testcases)
-    passed = sum(1 for t in testcases if t["status"] == "PASSED")
-    failed = sum(1 for t in testcases if t["status"] == "FAILED")
-    skipped = sum(1 for t in testcases if t["status"] == "SKIPPED")
+    passed = sum(1 for test in testcases if test["status"] == "PASSED")
+    failed = sum(1 for test in testcases if test["status"] == "FAILED")
+    skipped = sum(1 for test in testcases if test["status"] == "SKIPPED")
 
-    duration = sum(t["duration"] for t in testcases)
-
+    duration = sum(test["duration"] for test in testcases)
     pass_rate = (passed / total * 100) if total else 0
 
-    overall_status = "PASSED" if failed == 0 else "FAILED"
-    overall_class = "status-pass" if failed == 0 else "status-fail"
+    # Angles for the CSS donut chart.
+    if total > 0:
+        passed_degree = (passed / total) * 360
+        failed_degree = (failed / total) * 360
+    else:
+        passed_degree = 0
+        failed_degree = 0
+
+    failed_end_degree = passed_degree + failed_degree
+
+    overall_status = "PASSED" if failed == 0 and total > 0 else "FAILED"
+    overall_class = "status-pass" if overall_status == "PASSED" else "status-fail"
 
     execution_time = datetime.now().strftime("%d %B %Y %H:%M:%S")
 
+    # Jenkins metadata. Defaults make the report usable locally too.
     project_name = os.getenv("JOB_NAME", "Mobile Testing with Maestro")
     build_number = os.getenv("BUILD_NUMBER", "-")
     branch = os.getenv("BRANCH_NAME", "develop")
     commit = os.getenv("GIT_COMMIT", "-")
-    build_url = os.getenv("BUILD_URL", "-")
+    environment = os.getenv("TEST_ENVIRONMENT", "QA / Automation")
+    test_scope = os.getenv("TEST_SCOPE", "Positive Testing")
+    device_name = os.getenv("DEVICE_NAME", "Pixel 7 Emulator")
+    android_version = os.getenv("ANDROID_VERSION", "Android")
+    framework_version = os.getenv("MAESTRO_VERSION", "Maestro 2.11.0")
 
     rows = ""
 
@@ -119,8 +140,6 @@ def generate_report(testcases, output_path):
             "FAILED": "badge-fail",
             "SKIPPED": "badge-skip",
         }.get(test["status"], "badge-skip")
-
-        message = safe(test["message"])
 
         rows += f"""
         <tr>
@@ -133,15 +152,15 @@ def generate_report(testcases, output_path):
                 </span>
             </td>
             <td>{format_duration(test["duration"])}</td>
-            <td class="message">{message}</td>
+            <td class="message">{safe(test["message"])}</td>
         </tr>
         """
-
-    failed_section = ""
 
     failed_tests = [
         test for test in testcases if test["status"] == "FAILED"
     ]
+
+    failed_section = ""
 
     if failed_tests:
         cards = ""
@@ -149,14 +168,10 @@ def generate_report(testcases, output_path):
         for test in failed_tests:
             cards += f"""
             <div class="failure-card">
-                <div class="failure-title">
-                    {safe(test["name"])}
-                </div>
-
+                <div class="failure-title">{safe(test["name"])}</div>
                 <div class="failure-meta">
                     Module: {safe(test["module"])}
                 </div>
-
                 <div class="failure-message">
                     {safe(test["message"])}
                 </div>
@@ -167,26 +182,42 @@ def generate_report(testcases, output_path):
         <section>
             <div class="section-header">
                 <h2>Failed Test Analysis</h2>
-                <p>Detail kegagalan yang membutuhkan investigasi.</p>
+                <p>
+                    Failure details requiring investigation and re-test.
+                </p>
             </div>
 
             {cards}
         </section>
         """
 
-    conclusion = (
-        f"Seluruh {total} automated test berhasil dijalankan tanpa kegagalan."
-        if failed == 0
-        else
-        f"{failed} dari {total} automated test mengalami kegagalan dan membutuhkan investigasi sebelum proses dilanjutkan."
-    )
-
-    recommendation = (
-        "Build dapat dilanjutkan ke tahap validasi berikutnya berdasarkan hasil automated test ini."
-        if failed == 0
-        else
-        "Lakukan investigasi, perbaikan, dan re-test terhadap test yang gagal sebelum build dipromosikan."
-    )
+    if total == 0:
+        conclusion = "Tidak ada automated test yang ditemukan pada hasil eksekusi."
+        recommendation = "Periksa scope, tag, atau file JUnit sebelum mengambil keputusan build."
+        release_recommendation = "RESULT NOT AVAILABLE"
+        recommendation_class = "recommendation-warning"
+    elif failed == 0:
+        conclusion = (
+            f"Seluruh {total} automated test berhasil dijalankan "
+            "tanpa kegagalan."
+        )
+        recommendation = (
+            "Build dapat dilanjutkan ke tahap validasi berikutnya "
+            "berdasarkan hasil automated test ini."
+        )
+        release_recommendation = "APPROVED FOR NEXT VALIDATION STAGE"
+        recommendation_class = "recommendation-pass"
+    else:
+        conclusion = (
+            f"{failed} dari {total} automated test mengalami kegagalan "
+            "dan membutuhkan investigasi."
+        )
+        recommendation = (
+            "Lakukan investigasi, perbaikan, dan re-test terhadap test "
+            "yang gagal sebelum build dipromosikan."
+        )
+        release_recommendation = "REQUIRES INVESTIGATION & RE-TEST"
+        recommendation_class = "recommendation-fail"
 
     report = f"""
 <!DOCTYPE html>
@@ -199,19 +230,13 @@ def generate_report(testcases, output_path):
 <title>Mobile Automation Test Report</title>
 
 <style>
-
 * {{
     box-sizing: border-box;
 }}
 
 body {{
     margin: 0;
-    font-family:
-        Inter,
-        Segoe UI,
-        Arial,
-        sans-serif;
-
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
     background: #f5f7fa;
     color: #172033;
 }}
@@ -229,8 +254,7 @@ body {{
 }}
 
 .header p {{
-    margin-top: 8px;
-    margin-bottom: 0;
+    margin: 8px 0 0;
     color: #d9e2ec;
 }}
 
@@ -245,11 +269,9 @@ body {{
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 24px;
-
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 20px;
-
     border: 1px solid #e5e7eb;
 }}
 
@@ -263,6 +285,45 @@ body {{
 .meta-value {{
     font-size: 15px;
     font-weight: 600;
+}}
+
+.scope-badge {{
+    display: inline-block;
+    background: #eef4ff;
+    color: #3538cd;
+    padding: 5px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 700;
+}}
+
+.status-box {{
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 28px;
+    border: 1px solid;
+}}
+
+.status-pass {{
+    background: #edf9f1;
+    border-color: #a7d7b8;
+}}
+
+.status-fail {{
+    background: #fff1f1;
+    border-color: #f2b3b3;
+}}
+
+.status-title {{
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #667085;
+}}
+
+.status-value {{
+    margin-top: 6px;
+    font-size: 26px;
+    font-weight: 700;
 }}
 
 .cards {{
@@ -302,33 +363,19 @@ body {{
     color: #8a6508;
 }}
 
-.status-box {{
-    padding: 24px;
-    border-radius: 12px;
+.analytics-grid {{
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
     margin-bottom: 28px;
-    border: 1px solid;
 }}
 
-.status-pass {{
-    background: #edf9f1;
-    border-color: #a7d7b8;
-}}
-
-.status-fail {{
-    background: #fff1f1;
-    border-color: #f2b3b3;
-}}
-
-.status-title {{
-    font-size: 13px;
-    text-transform: uppercase;
-    color: #667085;
-}}
-
-.status-value {{
-    margin-top: 6px;
-    font-size: 26px;
-    font-weight: 700;
+.chart-card,
+.executive-card {{
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    border: 1px solid #e5e7eb;
 }}
 
 .section-header {{
@@ -336,12 +383,161 @@ body {{
 }}
 
 .section-header h2 {{
-    margin-bottom: 4px;
+    margin: 0 0 4px;
+    font-size: 21px;
 }}
 
 .section-header p {{
-    margin-top: 0;
+    margin: 0;
     color: #667085;
+}}
+
+.pie-wrapper {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 0;
+}}
+
+.pie-chart {{
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    background: conic-gradient(
+        #16a34a 0deg {passed_degree:.2f}deg,
+        #dc2626 {passed_degree:.2f}deg {failed_end_degree:.2f}deg,
+        #d97706 {failed_end_degree:.2f}deg 360deg
+    );
+    position: relative;
+}}
+
+.pie-chart::after {{
+    content: "";
+    position: absolute;
+    width: 125px;
+    height: 125px;
+    background: white;
+    border-radius: 50%;
+    top: 42.5px;
+    left: 42.5px;
+}}
+
+.pie-center {{
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}}
+
+.pie-rate {{
+    font-size: 28px;
+    font-weight: 700;
+}}
+
+.pie-label {{
+    font-size: 12px;
+    color: #667085;
+}}
+
+.legend {{
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}}
+
+.legend-item {{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: #475467;
+}}
+
+.legend-dot {{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}}
+
+.legend-pass {{
+    background: #16a34a;
+}}
+
+.legend-fail {{
+    background: #dc2626;
+}}
+
+.legend-skip {{
+    background: #d97706;
+}}
+
+.executive-result {{
+    font-size: 16px;
+    line-height: 1.75;
+    color: #344054;
+}}
+
+.executive-metrics {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+}}
+
+.executive-metric {{
+    background: #f8fafc;
+    border: 1px solid #eaecf0;
+    border-radius: 9px;
+    padding: 14px;
+}}
+
+.executive-metric-label {{
+    color: #667085;
+    font-size: 12px;
+    margin-bottom: 6px;
+}}
+
+.executive-metric-value {{
+    font-weight: 700;
+    font-size: 18px;
+}}
+
+.recommendation-box {{
+    margin-top: 22px;
+    padding: 18px;
+    border-radius: 8px;
+}}
+
+.recommendation-pass {{
+    background: #ecfdf3;
+    border-left: 4px solid #16a34a;
+}}
+
+.recommendation-fail {{
+    background: #fff1f2;
+    border-left: 4px solid #dc2626;
+}}
+
+.recommendation-warning {{
+    background: #fffaeb;
+    border-left: 4px solid #d97706;
+}}
+
+.recommendation-title {{
+    font-size: 12px;
+    color: #667085;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}}
+
+.recommendation-value {{
+    font-size: 18px;
+    font-weight: 700;
 }}
 
 section {{
@@ -422,6 +618,8 @@ td {{
 .failure-message {{
     font-family: Consolas, monospace;
     font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
 }}
 
 .conclusion {{
@@ -436,7 +634,6 @@ td {{
 }}
 
 @media (max-width: 900px) {{
-
     .cards {{
         grid-template-columns: repeat(2, 1fr);
     }}
@@ -445,29 +642,35 @@ td {{
         grid-template-columns: repeat(2, 1fr);
     }}
 
+    .analytics-grid {{
+        grid-template-columns: 1fr;
+    }}
+
+    .executive-metrics {{
+        grid-template-columns: 1fr;
+    }}
+
+    .header {{
+        padding: 26px 24px;
+    }}
+
+    .container {{
+        padding: 20px;
+    }}
 }}
-
 </style>
-
 </head>
 
 <body>
 
 <div class="header">
-
     <h1>Mobile Automation Test Report</h1>
-
-    <p>
-        Maestro · Android · Jenkins Continuous Integration
-    </p>
-
+    <p>Maestro · Android · Jenkins Continuous Integration</p>
 </div>
-
 
 <div class="container">
 
     <div class="metadata">
-
         <div>
             <div class="meta-label">Project</div>
             <div class="meta-value">{safe(project_name)}</div>
@@ -475,7 +678,7 @@ td {{
 
         <div>
             <div class="meta-label">Environment</div>
-            <div class="meta-value">QA / Automation</div>
+            <div class="meta-value">{safe(environment)}</div>
         </div>
 
         <div>
@@ -485,7 +688,24 @@ td {{
 
         <div>
             <div class="meta-label">Framework</div>
-            <div class="meta-value">Maestro 2.11.0</div>
+            <div class="meta-value">{safe(framework_version)}</div>
+        </div>
+
+        <div>
+            <div class="meta-label">Test Scope</div>
+            <div class="meta-value">
+                <span class="scope-badge">{safe(test_scope).upper()}</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="meta-label">Device</div>
+            <div class="meta-value">{safe(device_name)}</div>
+        </div>
+
+        <div>
+            <div class="meta-label">Operating System</div>
+            <div class="meta-value">{safe(android_version)}</div>
         </div>
 
         <div>
@@ -507,25 +727,14 @@ td {{
             <div class="meta-label">Execution Time</div>
             <div class="meta-value">{execution_time}</div>
         </div>
-
     </div>
-
 
     <div class="status-box {overall_class}">
-
-        <div class="status-title">
-            Overall Automation Status
-        </div>
-
-        <div class="status-value">
-            {overall_status}
-        </div>
-
+        <div class="status-title">Overall Automation Status</div>
+        <div class="status-value">{overall_status}</div>
     </div>
 
-
     <div class="cards">
-
         <div class="card">
             <div class="card-label">Total Tests</div>
             <div class="card-value">{total}</div>
@@ -550,56 +759,129 @@ td {{
             <div class="card-label">Pass Rate</div>
             <div class="card-value">{pass_rate:.1f}%</div>
         </div>
-
     </div>
 
+    <div class="analytics-grid">
+        <div class="chart-card">
+            <div class="section-header">
+                <h2>Test Distribution</h2>
+                <p>Automation execution result composition.</p>
+            </div>
+
+            <div class="pie-wrapper">
+                <div class="pie-chart">
+                    <div class="pie-center">
+                        <div class="pie-rate">{pass_rate:.1f}%</div>
+                        <div class="pie-label">Pass Rate</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-dot legend-pass"></span>
+                    Passed ({passed})
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot legend-fail"></span>
+                    Failed ({failed})
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot legend-skip"></span>
+                    Skipped ({skipped})
+                </div>
+            </div>
+        </div>
+
+        <div class="executive-card">
+            <div class="section-header">
+                <h2>Executive Summary</h2>
+                <p>High-level quality assessment of the current build.</p>
+            </div>
+
+            <div class="executive-result">
+                A total of <strong>{total} automated test cases</strong>
+                were executed as part of the
+                <strong>{safe(test_scope)}</strong> scope.
+
+                <br><br>
+
+                <strong>{passed}</strong> test cases passed,
+                <strong>{failed}</strong> failed, and
+                <strong>{skipped}</strong> were skipped.
+
+                The resulting automation pass rate is
+                <strong>{pass_rate:.1f}%</strong>.
+            </div>
+
+            <div class="executive-metrics">
+                <div class="executive-metric">
+                    <div class="executive-metric-label">Execution Duration</div>
+                    <div class="executive-metric-value">
+                        {format_duration(duration)}
+                    </div>
+                </div>
+
+                <div class="executive-metric">
+                    <div class="executive-metric-label">Build</div>
+                    <div class="executive-metric-value">
+                        #{safe(build_number)}
+                    </div>
+                </div>
+
+                <div class="executive-metric">
+                    <div class="executive-metric-label">Branch</div>
+                    <div class="executive-metric-value">
+                        {safe(branch)}
+                    </div>
+                </div>
+            </div>
+
+            <div class="recommendation-box {recommendation_class}">
+                <div class="recommendation-title">
+                    Release Recommendation
+                </div>
+                <div class="recommendation-value">
+                    {release_recommendation}
+                </div>
+            </div>
+        </div>
+    </div>
 
     <section>
-
         <div class="section-header">
             <h2>Execution Summary</h2>
-            <p>
-                Automated test execution overview.
-            </p>
+            <p>Automated test execution overview.</p>
         </div>
 
         <table>
-
             <thead>
-
-            <tr>
-                <th>#</th>
-                <th>Test Case</th>
-                <th>Module</th>
-                <th>Status</th>
-                <th>Duration</th>
-                <th>Result Detail</th>
-            </tr>
-
+                <tr>
+                    <th>#</th>
+                    <th>Test Case</th>
+                    <th>Module</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Result Detail</th>
+                </tr>
             </thead>
 
             <tbody>
-
                 {rows}
-
             </tbody>
-
         </table>
-
     </section>
-
 
     {failed_section}
 
-
     <section>
-
         <div class="section-header">
             <h2>QA Conclusion</h2>
         </div>
 
         <div class="conclusion">
-
             <p>
                 <strong>Conclusion:</strong><br>
                 {safe(conclusion)}
@@ -614,17 +896,11 @@ td {{
                 <strong>Total Execution Duration:</strong><br>
                 {format_duration(duration)}
             </p>
-
         </div>
-
     </section>
 
-
     <div class="footer">
-
-        Generated automatically by
-        Maestro Automation Reporting Pipeline
-
+        Generated automatically by Maestro Automation Reporting Pipeline
     </div>
 
 </div>
@@ -634,60 +910,45 @@ td {{
 """
 
     output = Path(output_path)
-
-    output.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    output.write_text(
-        report,
-        encoding="utf-8"
-    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(report, encoding="utf-8")
 
     print("=" * 60)
     print("Enterprise Maestro Report Generated")
     print("=" * 60)
-
     print(f"Total      : {total}")
     print(f"Passed     : {passed}")
     print(f"Failed     : {failed}")
     print(f"Skipped    : {skipped}")
     print(f"Pass Rate  : {pass_rate:.1f}%")
     print(f"Output     : {output.resolve()}")
-
     print("=" * 60)
 
 
 def main():
-
     if len(sys.argv) != 3:
-
         print(
-            "Usage:"
-            " python generate_report.py "
+            "Usage: python generate_report.py "
             "<junit.xml> <output.html>"
         )
-
         sys.exit(1)
 
     xml_path = sys.argv[1]
     output_path = sys.argv[2]
 
     if not Path(xml_path).exists():
-
-        print(
-            f"JUnit file not found: {xml_path}"
-        )
-
+        print(f"JUnit file not found: {xml_path}")
         sys.exit(1)
 
-    testcases = parse_junit(xml_path)
-
-    generate_report(
-        testcases,
-        output_path
-    )
+    try:
+        testcases = parse_junit(xml_path)
+        generate_report(testcases, output_path)
+    except ET.ParseError as exc:
+        print(f"Invalid JUnit XML: {exc}")
+        sys.exit(1)
+    except Exception as exc:
+        print(f"Report generation failed: {exc}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
