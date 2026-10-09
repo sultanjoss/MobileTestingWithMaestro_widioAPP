@@ -71,7 +71,7 @@ env:
           direction: LEFT
 
 - assertVisible:
-        text: "Swipe horiziontal"
+        text: "Swipe horizontal"
 - takeScreenshot: e2e_user_journey_success
 
 
