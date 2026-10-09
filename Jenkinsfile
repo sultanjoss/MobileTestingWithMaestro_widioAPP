@@ -32,7 +32,7 @@ pipeline {
 
         stage('Run Maestro Smoke Test') {
             steps {
-                bat 'maestro test . --include-tags=smoke'
+                bat 'maestro test . --include-tags=positif'
             }
         }
     }
