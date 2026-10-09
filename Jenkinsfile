@@ -14,6 +14,7 @@ pipeline {
     }
 
     stages {
+
         stage('Check Tools') {
             steps {
                 bat 'git --version'
@@ -30,27 +31,38 @@ pipeline {
         }
 
         stage('Run Maestro Positive Test') {
-            steps { bat '''if not exist reports mkdir reports
-            maestro test flowslogin ^
-            --include-tags=positif ^
-            --format junit ^
-            --output reports\\maestro-positive-result.xml
-            '''
+            steps {
+                catchError(
+                    buildResult: 'UNSTABLE',
+                    stageResult: 'FAILURE'
+                ) {
+                    bat '''
+                        if not exist reports mkdir reports
+
+                        maestro test flowslogin ^
+                            --include-tags=positif ^
+                            --format junit ^
+                            --output reports\\maestro-positive-result.xml
+                    '''
+                }
             }
         }
+
         stage('Publish Test Result') {
-            steps { junit 'reports/maestro-positive-result.xml'
+            steps {
+                junit 'reports/maestro-positive-result.xml'
             }
         }
+
         stage('Generate Enterprise HTML Report') {
             steps {
                 bat '''
-            if not exist reports\\dashboard mkdir reports\\dashboard
+                    if not exist reports\\dashboard mkdir reports\\dashboard
 
-            python report_generator\\generate_report.py ^
-                reports\\maestro-positive-result.xml ^
-                reports\\dashboard\\index.html
-        '''
+                    python report_generator\\generate_report.py ^
+                        reports\\maestro-positive-result.xml ^
+                        reports\\dashboard\\index.html
+                '''
             }
         }
     }
