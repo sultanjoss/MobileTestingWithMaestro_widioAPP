@@ -4,6 +4,10 @@ tags:
     - regression
     - positif
 
+env:
+    EMAIL : test@example.com
+    PASSWORD : '12345678'
+
 ---
 - launchApp:
     clearState: true
